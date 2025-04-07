@@ -5,6 +5,8 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
 from PIL import Image
 import os
+import pickle
+import matplotlib.pyplot as plt
 
 # Load the model safely
 @st.cache_resource
@@ -20,6 +22,17 @@ def load_vgg19_model():
         st.error(f"❌ Failed to load model: {e}")
         return None
 
+# Load training history from .pkl
+@st.cache_data
+def load_training_history():
+    try:
+        with open("/mnt/data/vgg19_history.pkl", "rb") as f:
+            history = pickle.load(f)
+        return history
+    except Exception as e:
+        st.warning(f"⚠️ Could not load training history: {e}")
+        return None
+
 # Show spinner while loading
 with st.spinner("Loading model..."):
     model = load_vgg19_model()
@@ -27,12 +40,28 @@ with st.spinner("Loading model..."):
 if model is None:
     st.stop()  # Stop app if model failed to load
 
+# Load training history
+history = load_training_history()
+
 # Define class labels
 class_names = ["Non-Demented", "Very Mild Demented", "Mild Demented", "Moderate Demented"]
 
 # Title
 st.title("🧠 Alzheimer's Detection from Brain Scans")
 st.write("Upload an MRI brain scan and the model will predict the likelihood of Alzheimer's.")
+
+# Show training history chart
+if history:
+    st.subheader("📈 Model Training History")
+    fig, ax = plt.subplots()
+    ax.plot(history['accuracy'], label='Training Accuracy')
+    if 'val_accuracy' in history:
+        ax.plot(history['val_accuracy'], label='Validation Accuracy')
+    ax.set_title("Accuracy over Epochs")
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Accuracy")
+    ax.legend()
+    st.pyplot(fig)
 
 # Upload image
 uploaded_file = st.file_uploader("Choose an MRI image...", type=["jpg", "jpeg", "png"])
