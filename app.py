@@ -1,19 +1,31 @@
-import streamlit as st
+import streamlit as st 
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
 from PIL import Image
+import os
 
-# Load the model
+# Load the model safely
 @st.cache_resource
 def load_vgg19_model():
-    model = load_model("vgg19.h5")
-    return model
+    try:
+        model_path = "vgg19.h5"
+        if not os.path.exists(model_path):
+            st.error("❌ Model file not found: vgg19.h5")
+            return None
+        model = load_model(model_path)
+        return model
+    except Exception as e:
+        st.error(f"❌ Failed to load model: {e}")
+        return None
 
 # Show spinner while loading
 with st.spinner("Loading model..."):
     model = load_vgg19_model()
+
+if model is None:
+    st.stop()  # Stop app if model failed to load
 
 # Define class labels
 class_names = ["Non-Demented", "Very Mild Demented", "Mild Demented", "Moderate Demented"]
@@ -34,7 +46,7 @@ if uploaded_file is not None:
     img = img.resize((224, 224))
     img_array = image.img_to_array(img)
     img_array = np.expand_dims(img_array, axis=0)
-    img_array /= 255.0  # Normalize
+    img_array = img_array / 255.0  # Normalize
 
     # Predict and apply softmax
     prediction = model.predict(img_array)
@@ -46,4 +58,6 @@ if uploaded_file is not None:
     st.subheader("🧪 Prediction")
     st.write(f"**Predicted Class:** {predicted_class}")
     st.write(f"**Confidence:** {confidence:.2f}%")
+
+    # Visualize probabilities
     st.bar_chart(probabilities)
